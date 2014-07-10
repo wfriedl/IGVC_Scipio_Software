@@ -1,0 +1,10 @@
+<launch>
+	<include file="$(find scipio_2dnav)/scipio_config.launch" />
+	<include file="$(find gps_common)/gps_common.launch" />
+	<include file="$(find robot_pose_ekf)/robot_pose_ekf.launch" />
+	<include file="$(find scipio_2dnav)/move_base.launch" />
+ 
+</launch>
+
+
+

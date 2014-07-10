@@ -1,0 +1,116 @@
+#include <ros/ros.h>
+#include <tf/transform_broadcaster.h>
+#include <geometry_msgs/Twist.h>        // Twist message file
+#include <nav_msgs/Odometry.h>
+
+geometry_msgs::Twist twist_velocity;
+
+// A callback function. Executed each time a new fix
+// message arrives.
+void twistMessageReceived(const geometry_msgs::Twist& msg) {
+  twist_velocity = msg;
+  }
+
+  int main(int argc, char **argv) {
+    //  Initialize the ROS system and become a node.?
+
+
+    ros::init(argc, argv, "subscribe_to_twist");
+    ros::NodeHandle nh;
+    ros::Subscriber velocity_sub;
+    ros::Publisher odom_pub = nh.advertise<nav_msgs::Odometry>("odom", 50);
+    tf::TransformBroadcaster odom_broadcaster;
+
+
+    // Create a subscriber object.
+    velocity_sub = nh.subscribe("current_velocity", 1000, &twistMessageReceived);
+
+    // Initial position is at 0,0
+    double x = 0.0;
+    double y = 0.0;
+    double th = 0.0;
+
+
+
+    // Initialize times
+    ros::Time current_time, last_time;
+    current_time = ros::Time::now();
+    last_time = ros::Time::now();
+
+    ros::Rate rate(1.0);
+    while(nh.ok()){
+      ros::spinOnce();  // Get current velocity
+      current_time = ros::Time::now();
+
+      // Declare velocities
+      float r = 0.0;
+      float theta = 0.0;
+      double vx = 0.0;
+      double vy = 0.0;
+      double vth = 0.0;
+
+      // Update Odometry
+      r = twist_velocity.linear.x;
+      theta = twist_velocity.angular.z;
+
+      // Calculate the velocities
+      vx = r*cos(theta);
+      vy = r*sin(theta);
+      double dt = (current_time - last_time).toSec();
+
+      // Calculate the changes in position
+      double delta_x = vx * dt;
+      double delta_y = vy * dt;
+      double delta_th = theta * dt;
+      x += delta_x;
+      y += delta_y;
+      th += delta_th;
+
+
+      // Begin publishing code
+      //since all odometry is 6DOF we'll need a quaternion created from yaw
+      geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(th);
+
+      // Set up transform message to be published
+      geometry_msgs::TransformStamped odom_trans;
+      odom_trans.header.stamp = current_time;
+      odom_trans.header.frame_id = "odom";
+      odom_trans.child_frame_id = "base_link";
+
+      // Fill out transform message
+      odom_trans.transform.translation.x = x;
+      odom_trans.transform.translation.y = y;
+      odom_trans.transform.translation.z = 0.0;
+      odom_trans.transform.rotation = odom_quat;
+
+      odom_broadcaster.sendTransform(odom_trans);
+
+      // Publish the odometry message over ROS
+      nav_msgs::Odometry odom;
+      odom.header.stamp = current_time;
+      odom.header.frame_id = "odom";
+
+      //set the position
+      odom.pose.pose.position.x = x;
+      odom.pose.pose.position.y = y;
+      odom.pose.pose.position.z = 0.0;
+      odom.pose.pose.orientation = odom_quat;
+
+      //set the velocity
+      odom.child_frame_id = "base_link";
+      odom.twist.twist.linear.x = vx;
+      odom.twist.twist.linear.y = vy;
+      odom.twist.twist.angular.z = vth;
+
+      //publish the message
+      odom_pub.publish(odom);
+
+
+
+      last_time = current_time;  // Update the time
+      rate.sleep();
+    }
+
+    // Let ROS take over.
+    ros::spin();
+}

@@ -1,0 +1,17 @@
+<launch>
+
+    <include file="$(find base_controller)/start.launch" />
+
+    <node pkg="odom" type="odom" name="odom" output="screen"/>
+
+    <node pkg="sick_tim3xx" name="sick_tim310" type="sick_tim310"/>
+
+    <node pkg="robot_setup_tf" type="robot_tf_publisher" name="robot_tf_publisher"/>
+
+    <node pkg="roboteq_node" type="roboteq_node" name="roboteq_node"/>
+
+    <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+        <param name="map_update_interval" value="1.0" />
+    </node>
+
+</launch>
